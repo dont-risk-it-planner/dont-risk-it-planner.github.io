@@ -155,8 +155,9 @@
         Prediction errors matter differently depending on the trajectory under consideration: an occupancy
         error far from the robot&rsquo;s path may be irrelevant, whereas a small error near its closest
         encounter with an obstacle can change whether the trajectory should be chosen. DRIP therefore
-        learns uncertainty in a trajectory-specific safety quantity, the <em>minimum clearance</em>
-        along the candidate, instead of only in individual occupancy cells.
+        assesses each candidate through its <em>distributional collision risk</em>. A distribution over
+        the minimum clearance along the trajectory is predicted from the LiDAR history, and the extent to
+        which this distribution violates the required safety buffer is quantified as a single risk value.
       </p>
       <ul>
         <li><strong>LiDAR-only predictive planning.</strong> Detection- and tracking-free occupancy
