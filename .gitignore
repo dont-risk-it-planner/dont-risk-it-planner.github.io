@@ -1,0 +1,11 @@
+# nix / direnv
+.direnv/
+result
+result-*
+
+# source material for the page (originals live outside the published site)
+temp/
+figures/
+
+# OS cruft
+.DS_Store

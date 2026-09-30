@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Don't Risk It! (DRIP): an end-to-end, LiDAR-only crowd navigation planner that couples occupancy forecasting with a trajectory-conditioned distribution over minimum clearance, trained so predictive uncertainty reflects collision risk.">
+  <meta name="keywords" content="crowd navigation, LiDAR, occupancy forecasting, distributional risk, maximum mean discrepancy, uncertainty, model predictive control">
+  <title>Don't Risk It!: Trajectory-Conditioned Distributional Risk for LiDAR-Only Crowd Navigation</title>
+
+  <meta property="og:title" content="Don't Risk It!: Trajectory-Conditioned Distributional Risk for LiDAR-Only Crowd Navigation">
+  <meta property="og:description" content="A LiDAR-only planner that forecasts occupancy and scores every candidate trajectory by the distribution of its closest approach to obstacles.">
+  <meta property="og:image" content="./static/images/teaser.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="stylesheet" href="./static/css/index.css?v=3">
+  <link rel="icon" type="image/svg+xml" href="./static/images/favicon.svg?v=3">
+  <link rel="icon" type="image/png" sizes="32x32" href="./static/images/favicon-32.png?v=3">
+  <link rel="apple-touch-icon" sizes="180x180" href="./static/images/favicon-180.png?v=3">
+
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+      svg: { fontCache: 'global' },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+
+<!-- ============================ TITLE ============================ -->
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">Don&rsquo;t Risk It!</h1>
+          <h2 class="subtitle is-4 publication-subtitle">
+            Trajectory-Conditioned Distributional Risk for LiDAR-Only Crowd Navigation
+          </h2>
+
+          <p class="publication-venue">
+            Anonymous submission
+          </p>
+
+          <div class="publication-links">
+            <span class="link-block">
+              <a href="./static/paper.pdf" target="_blank" rel="noopener"
+                 class="external-link button is-normal is-rounded is-dark">
+                <span class="icon"><i class="fas fa-file-pdf"></i></span>
+                <span>Paper</span>
+              </a>
+            </span>
+            <span class="link-block">
+              <a href="#video" class="external-link button is-normal is-rounded is-dark">
+                <span class="icon"><i class="fas fa-video"></i></span>
+                <span>Video</span>
+              </a>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TEASER ============================ -->
+<section class="hero teaser">
+  <div class="container is-max-widescreen">
+    <div class="hero-body">
+      <figure class="figure teaser-figure">
+        <img src="./static/images/teaser.png"
+             alt="Navigation via trajectory-conditioned distributional risk: (a) LiDAR history and goal, (b) candidate rollouts shaded by predictive uncertainty and coloured as selected, rejected for high uncertainty or rejected for collision, (c) the wheelchair executing the selected trajectory around a pedestrian.">
+      </figure>
+      <p class="figure-caption has-text-centered">
+        <strong>Navigation via trajectory-conditioned distributional risk.</strong>
+        <strong>(a)</strong> From a 1&nbsp;s history of raw 2D LiDAR grids, with no object detection or
+        pedestrian tracking, the model forecasts how the scene will evolve.
+        <strong>(b)</strong> Candidate rollouts are shaded by their predictive variance envelopes:
+        maneuvers that collide with static obstacles are discarded (<span style="color:#d33;">red</span>),
+        paths that cut across the pedestrian&rsquo;s anticipated path incur an elevated risk penalty
+        (<span style="color:#e08a00;">orange</span>), and the wide bypass keeps a tight predictive
+        distribution and is certified safe (<span style="color:#1c8a3a;">green</span>).
+        <strong>(c)</strong> The autonomous wheelchair executes the selected control sequence and passes
+        the moving pedestrian.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ABSTRACT ============================ -->
+<section class="section">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            Efficient crowd navigation requires anticipating dynamic collision-free space without relying
+            on fragile object tracking. We propose the Don&rsquo;t Risk It Planner (DRIP), an end-to-end
+            LiDAR-only planning framework that couples occupancy forecasting with trajectory-conditioned
+            clearance and uncertainty estimation. Operating directly on LiDAR-derived occupancy grid
+            histories, DRIP predicts a distribution over minimum robot&ndash;obstacle clearance for
+            candidate control sequences to evaluate collision risk. The model is trained using a risk cost
+            that grounds predictive uncertainty directly in empirical collision outcomes rather than
+            geometric regression alone. In closed-loop experiments with up to 45 pedestrians, DRIP achieves
+            higher success rates with fewer collisions and reduced freezing behavior compared to
+            state-of-the-art baselines.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VIDEO ============================ -->
+<section class="section is-light" id="video">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-full">
+        <h2 class="title is-3 has-text-centered">Video</h2>
+
+        <div class="main-video">
+          <video id="supp-video" controls preload="metadata" playsinline
+                 poster="./static/images/video-poster.jpg?v=4">
+            <source src="./static/videos/dont-risk-it-supplementary.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+
+        <div class="chapters">
+          <button data-t="6"><span class="t">0:06</span>Architecture</button>
+          <button data-t="58"><span class="t">0:58</span>DWA with risk</button>
+          <button data-t="77"><span class="t">1:17</span>Versus SCOPE</button>
+          <button data-t="102"><span class="t">1:42</span>Real-world deployment</button>
+          <button data-t="127"><span class="t">2:07</span>Simulated environments</button>
+          <button data-t="146"><span class="t">2:26</span>Benchmarks</button>
+          <button data-t="157"><span class="t">2:37</span>LiDAR noise</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ METHOD ============================ -->
+<section class="section" id="method">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Method</h2>
+
+    <div class="content">
+      <p>
+        Prediction errors matter differently depending on the trajectory under consideration: an occupancy
+        error far from the robot&rsquo;s path may be irrelevant, whereas a small error near its closest
+        encounter with an obstacle can change whether the trajectory should be chosen. DRIP therefore
+        learns uncertainty in a trajectory-specific safety quantity, the <em>minimum clearance</em>
+        along the candidate, instead of only in individual occupancy cells.
+      </p>
+      <ul>
+        <li><strong>LiDAR-only predictive planning.</strong> Detection- and tracking-free occupancy
+            forecasting is coupled with a trajectory-conditioned distribution over minimum clearance,
+            which is mapped to collision risk with a squared-MMD functional.</li>
+        <li><strong>Risk-calibrated uncertainty learning.</strong> Supervision from safe and unsafe
+            trajectories shapes the predictive variance through its downstream effect on the risk
+            estimate, rather than through scene-level forecasting accuracy alone.</li>
+        <li><strong>Sampling-based planning.</strong> The risk, a next-step occupancy check, goal progress
+            and smoothness are combined in a DWA-style local planner that replans at 10&nbsp;Hz.</li>
+      </ul>
+    </div>
+
+    <figure class="figure">
+      <img src="./static/images/arch.png"
+           alt="DRIP architecture: a history of pose-warped BEV occupancy maps is encoded by a shared spatial CNN with FiLM conditioning on ego velocity, spatiotemporal transformer blocks produce a scene representation, an occupancy decoder forecasts future occupancy and a trajectory-conditioned distance head predicts a clearance distribution and kernel width used to compute the MMD risk.">
+    </figure>
+    <p class="figure-caption">
+      Overview of DRIP&rsquo;s LiDAR-only prediction and trajectory-conditioned risk architecture. A history
+      $\mathcal{H}$ of pose-warped BEV occupancy maps is encoded independently by a shared-weight spatial
+      CNN, conditioned on ego velocity $\mathcal{V}$ through FiLM. Spatiotemporal Transformer blocks then
+      reason over the temporal history and spatial BEV tokens to produce a shared scene representation
+      $z_{scene}$. Two branches use this representation: the occupancy decoder predicts the future evolution
+      of the scene ($\widehat{\mathbf{O}}_k$) over a 20-step horizon, while the trajectory-conditioned
+      Distance Head combines scene features with candidate trajectory queries $\mathbf{q}_k$ to predict a
+      stepwise clearance distribution $(\mu_k,\sigma_k^2)$ and a trajectory-specific kernel width $\lambda$.
+      These predictions are subsequently used to compute the distributional $\mathrm{MMD}^2$ risk
+      $\widehat{r}_{\boldsymbol{\theta}}(\mathbf{u})$ for each candidate trajectory $\mathbf{u}$.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ QUALITATIVE COMPARISONS ============================ -->
+<section class="section is-light" id="comparisons">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Qualitative Comparisons</h2>
+    <div class="content has-text-centered">
+      <p>
+        Closed-loop navigation in simulated dense crowds, in the same scene for both planners.
+      </p>
+    </div>
+
+    <div class="carousel" data-carousel>
+      <button class="carousel-nav prev" type="button" aria-label="Previous comparison"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></button>
+
+      <div class="carousel-track">
+        <div class="carousel-slide">
+          <div class="carousel-pair">
+            <figure class="pair-item">
+              <video autoplay muted loop playsinline preload="metadata"
+                     poster="./static/images/posters/dwa-vanilla.jpg" data-autoplay>
+                <source src="./static/videos/sim/dwa-vanilla.mp4" type="video/mp4">
+              </video>
+              <figcaption>Vanilla DWA</figcaption>
+            </figure>
+            <figure class="pair-item">
+              <video autoplay muted loop playsinline preload="metadata"
+                     poster="./static/images/posters/dwa-risk.jpg" data-autoplay>
+                <source src="./static/videos/sim/dwa-risk.mp4" type="video/mp4">
+              </video>
+              <figcaption><strong>DWA with risk</strong></figcaption>
+            </figure>
+          </div>
+          <p class="row-caption">Standard DWA versus the same planner augmented with trajectory-conditioned distributional risk.</p>
+        </div>
+        <div class="carousel-slide">
+          <div class="carousel-pair">
+            <figure class="pair-item">
+              <video autoplay muted loop playsinline preload="metadata"
+                     poster="./static/images/posters/scope-collision.jpg?v=2" data-autoplay>
+                <source src="./static/videos/sim/scope-collision.mp4?v=2" type="video/mp4">
+              </video>
+              <figcaption>SCOPE</figcaption>
+            </figure>
+            <figure class="pair-item">
+              <video autoplay muted loop playsinline preload="metadata"
+                     poster="./static/images/posters/drip-scope-scene.jpg?v=2" data-autoplay>
+                <source src="./static/videos/sim/drip-scope-scene.mp4?v=2" type="video/mp4">
+              </video>
+              <figcaption><strong>DRIP (ours)</strong></figcaption>
+            </figure>
+          </div>
+          <p class="row-caption">Future prediction is not sufficient for safe planning: SCOPE forecasts occupancy, while DRIP scores the safety of each candidate trajectory with a clearance-risk distribution.</p>
+        </div>
+        <div class="carousel-slide">
+          <div class="carousel-pair">
+            <figure class="pair-item">
+              <video autoplay muted loop playsinline preload="metadata"
+                     poster="./static/images/posters/scope-noise.jpg?v=2" data-autoplay>
+                <source src="./static/videos/sim/scope-noise.mp4?v=2" type="video/mp4">
+              </video>
+              <figcaption>SCOPE</figcaption>
+            </figure>
+            <figure class="pair-item">
+              <video autoplay muted loop playsinline preload="metadata"
+                     poster="./static/images/posters/drip-noise.jpg?v=2" data-autoplay>
+                <source src="./static/videos/sim/drip-noise.mp4?v=2" type="video/mp4">
+              </video>
+              <figcaption><strong>DRIP (ours)</strong></figcaption>
+            </figure>
+          </div>
+          <p class="row-caption">Robustness to LiDAR measurement noise: comparison with SCOPE under noisy observations.</p>
+        </div>
+      </div>
+
+      <p class="carousel-count"><span data-carousel-index>1</span> / <span data-carousel-total>3</span></p>
+
+      <button class="carousel-nav next" type="button" aria-label="Next comparison"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ REAL WORLD ============================ -->
+<section class="section" id="real-world">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Real-World Deployment</h2>
+    <div class="content">
+      <p>
+        We deploy DRIP on two platforms with different form factors and sensing: a Pioneer 3-DX with a
+        2D RPLIDAR A3, and a full-scale autonomous wheelchair with a Livox Mid-360 3D LiDAR whose returns
+        are filtered, ground-segmented and projected into 2D BEV occupancy grids. The whole perception and
+        planning pipeline runs onboard.
+      </p>
+    </div>
+
+    <div class="main-video">
+      <video autoplay muted loop playsinline preload="metadata" data-autoplay
+             poster="./static/images/posters/deployment.jpg">
+        <source src="./static/videos/real/deployment.mp4" type="video/mp4">
+      </video>
+    </div>
+
+    <p class="table-note">
+      Across 20 closed-loop trials (paths of 15&ndash;35&nbsp;m) in a cluttered laboratory space and an
+      academic corridor, with unscripted humans as dynamic obstacles, DRIP succeeds in
+      <strong>17 of 20 runs (85%)</strong> without human intervention. In open corridors it commits to wide
+      bypasses well before mutual deceleration; in tight bottlenecks the clearance floor keeps the base off
+      the walls while the learned risk moderates speed through moving crowds, avoiding freezing.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ OCCUPANCY PREDICTION ============================ -->
+<section class="section is-light" id="occupancy">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Tracking-Free Occupancy Prediction</h2>
+
+    <figure class="figure">
+      <img src="./static/images/forecast.png"
+           alt="Predicted future occupancy maps (top row) against ground-truth future occupancy maps (bottom row) for the first five forecast steps.">
+    </figure>
+    <p class="figure-caption">
+      <em>Top row:</em> the first five steps of the predicted future occupancy maps
+      ($\widehat{\mathbf{O}}_k$), thresholded, from the full 20-step horizon. <em>Bottom row:</em> the
+      corresponding ground-truth maps ($\mathbf{O}_k^{\mathrm{gt}}$). From LiDAR histories alone, with no
+      pedestrian tracking or data association, the network anticipates the motion of dynamic obstacles while
+      preserving static boundaries.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ RESULTS ============================ -->
+<section class="section" id="results">
+  <div class="container is-max-desktop">
+    <h2 class="title is-3 has-text-centered">Simulation Benchmarks</h2>
+
+    <div class="content">
+      <p>
+        We evaluate in the PedSim simulator (Lobby world) with a differential-drive Turtlebot2 and a
+        270&deg; 2D LiDAR, against DWA, TEB, SCOPE and DRL-VO, with 35 and 45 active pedestrians
+        (100 nominal runs each) and with Gaussian LiDAR range noise of $\sigma = 0.05\,\mathrm{m}$
+        (50 runs each). A run succeeds if it reaches the goal without collision within 90&nbsp;s. DRIP,
+        DWA, TEB and SCOPE use raw 2D LiDAR only; DRL-VO<sup>&dagger;</sup> is given privileged
+        pedestrian tracks and velocities, and is therefore not evaluated under noise.
+      </p>
+    </div>
+
+    <p class="figure-caption" style="margin-top:0;">
+      <strong>Closed-loop evaluation in dense crowds.</strong> At 45 pedestrians DRIP reaches
+      <strong>85.0%</strong> success, and under sensor noise it holds <strong>86.0%</strong> success at a
+      completion time of 13.4&nbsp;s versus 27.0&nbsp;s for SCOPE.
+    </p>
+
+    <div class="table-view">
+      <div id="results-table">
+        <div class="table-scroll">
+          <table class="results">
+            <thead>
+              <tr>
+                <th rowspan="2">Planner</th>
+                <th class="group" colspan="4">Nominal navigation (100 runs)</th>
+                <th class="group" colspan="4">Sensor noise, &sigma; = 0.05 m (50 runs)</th>
+              </tr>
+              <tr>
+                <th>Succ. (%) &uarr;</th><th>Time (s) &darr;</th><th>Path (m) &darr;</th><th>Vel. (m/s) &uarr;</th>
+                <th>Succ. (%) &uarr;</th><th>Time (s) &darr;</th><th>Path (m) &darr;</th><th>Vel. (m/s) &uarr;</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="section-row"><td colspan="9">35 pedestrians</td></tr>
+              <tr><td>DRL-VO<sup>&dagger;</sup></td><td>74.0</td><td>11.5</td><td>5.39</td><td>0.460</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td></tr>
+              <tr><td>DWA</td><td>79.0</td><td>13.5</td><td>5.08</td><td>0.355</td><td>38.0</td><td>31.8</td><td>7.33</td><td>0.195</td></tr>
+              <tr><td>SCOPE</td><td class="second">80.0</td><td>14.8</td><td>5.42</td><td>0.365</td><td class="second">66.0</td><td>26.3</td><td>6.10</td><td>0.227</td></tr>
+              <tr><td>TEB</td><td>71.0</td><td>12.3</td><td>5.46</td><td>0.413</td><td>30.0</td><td>40.2</td><td>18.09</td><td>0.368</td></tr>
+              <tr class="ours"><td>Ours</td><td class="best">87.0</td><td>12.1</td><td>4.83</td><td>0.394</td><td class="best">82.0</td><td>12.9</td><td>4.67</td><td>0.357</td></tr>
+
+              <tr class="section-row"><td colspan="9">45 pedestrians</td></tr>
+              <tr><td>DRL-VO<sup>&dagger;</sup></td><td class="second">82.0</td><td>11.5</td><td>5.42</td><td>0.455</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td><td>&ndash;</td></tr>
+              <tr><td>DWA</td><td>74.0</td><td>14.7</td><td>5.47</td><td>0.352</td><td>52.0</td><td>28.8</td><td>5.60</td><td>0.175</td></tr>
+              <tr><td>SCOPE</td><td>78.0</td><td>15.2</td><td>5.09</td><td>0.328</td><td class="second">64.0</td><td>27.0</td><td>5.53</td><td>0.204</td></tr>
+              <tr><td>TEB</td><td>76.0</td><td>12.5</td><td>5.38</td><td>0.413</td><td>20.0</td><td>46.5</td><td>21.01</td><td>0.312</td></tr>
+              <tr class="ours"><td>Ours</td><td class="best">85.0</td><td>13.0</td><td>4.82</td><td>0.376</td><td class="best">86.0</td><td>13.4</td><td>4.87</td><td>0.356</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">
+          Best and second-best success rates are highlighted. <sup>&dagger;</sup>DRL-VO uses privileged
+          pedestrian tracking and velocities and is excluded from the noise tests. The full decision loop
+          (perception, forecasting, risk evaluation and planning) runs in about 70&nbsp;ms on an RTX 3060
+          laptop GPU, inside the 100&nbsp;ms budget of a 10&nbsp;Hz control loop.
+        </p>
+        <!-- BEGIN extra-envs: additional environments (remove this block to revert) -->
+        <div class="extra-envs" style="margin-top:1.75rem;">
+          <p class="table-note has-text-centered" style="margin-bottom:0.75rem;"><strong>Additional environments.</strong> The same planners in two further simulated worlds, Autolab and Cumberland, under nominal navigation only (no noise runs).</p>
+          <div class="table-scroll" style="margin-top:0.6rem; font-size:0.92em;">
+            <table class="results" style="min-width:0; max-width:560px; margin:0 auto; color:#5a5a5a;">
+              <thead>
+                <tr>
+                  <th>Planner</th>
+                  <th>Succ. (%) &uarr;</th><th>Time (s) &darr;</th><th>Path (m) &darr;</th><th>Vel. (m/s) &uarr;</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="section-row"><td colspan="5">Autolab &mdash; 30 pedestrians (30 runs)</td></tr>
+                <tr><td>DWA</td><td>66.7</td><td>16.7</td><td>5.67</td><td>0.325</td></tr>
+                <tr><td>SCOPE</td><td class="second">83.3</td><td>18.1</td><td>5.90</td><td>0.322</td></tr>
+                <tr><td>TEB</td><td>70.0</td><td>13.3</td><td>5.82</td><td>0.424</td></tr>
+                <tr class="ours"><td>Ours</td><td class="best">86.7</td><td>12.7</td><td>5.50</td><td>0.419</td></tr>
+
+                <tr class="section-row"><td colspan="5">Cumberland &mdash; 28 pedestrians (30 runs)</td></tr>
+                <tr><td>DWA</td><td>63.3</td><td>27.6</td><td>7.39</td><td>0.314</td></tr>
+                <tr><td>SCOPE</td><td class="second">76.7</td><td>15.2</td><td>5.47</td><td>0.366</td></tr>
+                <tr><td>TEB</td><td class="second">76.7</td><td>12.8</td><td>5.83</td><td>0.434</td></tr>
+                <tr class="ours"><td>Ours</td><td class="best">83.3</td><td>16.9</td><td>7.28</td><td>0.399</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="table-note has-text-centered">Best and second-best success rates are highlighted; SCOPE and TEB tie for second in Cumberland.</p>
+        </div>
+        <!-- END extra-envs -->
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FOOTER ============================ -->
+<footer class="footer">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content has-text-centered">
+          <p style="font-size: 0.9rem; color: #5a5a5a;">
+            This page layout is based on the
+            <a href="https://github.com/nerfies/nerfies.github.io" target="_blank" rel="noopener">Nerfies</a>
+            project page template.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+
+<script>
+/* Page behaviour is inlined on purpose: an external script is one more thing
+   that can be cached stale, blocked or fail to load, and this page should not
+   go inert when that happens. The clips also carry the autoplay attribute, so
+   they play even if none of this runs. */
+(function () {
+  'use strict';
+
+  /* ---- chapter buttons under the main video --------------------------- */
+  var video = document.getElementById('supp-video');
+  var chapterBtns = [].slice.call(document.querySelectorAll('.chapters button'));
+
+  if (video && chapterBtns.length) {
+    var seekTo = function (t) {
+      var apply = function () {
+        try { video.currentTime = t; } catch (e) { /* not seekable yet */ }
+        var p = video.play();
+        if (p && p.catch) p.catch(function () {});
+      };
+      if (video.readyState >= 1) { apply(); }
+      else { video.addEventListener('loadedmetadata', apply, { once: true }); }
+
+      /* A server that ignores Range requests cannot seek. Fall back to
+         buffering the file and seeking inside what has arrived. */
+      window.setTimeout(function () {
+        if (Math.abs(video.currentTime - t) < 1.5) return;
+        video.preload = 'auto';
+        var tries = 0;
+        var retry = function () {
+          tries++;
+          try { video.currentTime = t; } catch (e) {}
+          if (tries > 40 || Math.abs(video.currentTime - t) < 1.5) {
+            video.removeEventListener('progress', retry);
+          }
+        };
+        video.addEventListener('progress', retry);
+      }, 400);
+    };
+
+    chapterBtns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        chapterBtns.forEach(function (o) { o.classList.remove('is-active'); });
+        b.classList.add('is-active');
+        seekTo(parseFloat(b.getAttribute('data-t')));
+      });
+    });
+
+    var markActive = function () {
+      var t = video.currentTime, active = -1;
+      chapterBtns.forEach(function (b, i) {
+        if (parseFloat(b.getAttribute('data-t')) <= t + 0.25) active = i;
+      });
+      chapterBtns.forEach(function (b, i) { b.classList.toggle('is-active', i === active); });
+    };
+    video.addEventListener('timeupdate', markActive);
+    video.addEventListener('seeked', markActive);
+  }
+
+  /* ---- looping result clips ------------------------------------------- */
+  var clips = [].slice.call(document.querySelectorAll('video[data-autoplay]'));
+
+  function shown(v) { return v.offsetParent !== null || v.getClientRects().length > 0; }
+
+  function tryPlay(v) {
+    if (!shown(v)) return;
+    var p = v.play();
+    if (p && p.catch) p.catch(function () {});
+  }
+
+  /* No control bar, so a click is the way back in if autoplay is refused. */
+  clips.forEach(function (v) {
+    v.addEventListener('click', function () {
+      if (v.paused) tryPlay(v); else v.pause();
+    });
+  });
+
+  if (clips.length && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) tryPlay(e.target);
+        else if (!e.target.paused) e.target.pause();
+      });
+    }, { threshold: 0.2 });
+    clips.forEach(function (v) { io.observe(v); });
+  }
+
+  /* ---- horizontal carousel --------------------------------------------- */
+  [].forEach.call(document.querySelectorAll('[data-carousel]'), function (root) {
+    var track = root.querySelector('.carousel-track');
+    var slide = root.querySelector('.carousel-slide');
+    var prev = root.querySelector('.carousel-nav.prev');
+    var next = root.querySelector('.carousel-nav.next');
+    if (!track || !slide || !prev || !next) return;
+
+    function step(dir) {
+      track.scrollBy({ left: dir * slide.getBoundingClientRect().width, behavior: 'smooth' });
+    }
+    prev.addEventListener('click', function () { step(-1); });
+    next.addEventListener('click', function () { step(1); });
+
+    var index = root.querySelector('[data-carousel-index]');
+    var total = root.querySelector('[data-carousel-total]');
+    var slides = root.querySelectorAll('.carousel-slide');
+    if (total) total.textContent = slides.length;
+
+    /* grey out an arrow once there is nothing further that way, and keep the
+       position counter honest */
+    function sync() {
+      var max = track.scrollWidth - track.clientWidth;
+      prev.disabled = track.scrollLeft <= 2;
+      next.disabled = track.scrollLeft >= max - 2;
+      if (index) {
+        var w = slide.getBoundingClientRect().width || 1;
+        var i = Math.min(slides.length, Math.max(1, Math.round(track.scrollLeft / w) + 1));
+        index.textContent = i;
+      }
+    }
+    track.addEventListener('scroll', sync, { passive: true });
+    window.addEventListener('resize', sync);
+    sync();
+  });
+})();
+</script>
+</body>
+</html>
